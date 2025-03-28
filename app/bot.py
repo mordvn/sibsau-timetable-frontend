@@ -59,8 +59,7 @@ class BotRunner:
 
     @staticmethod
     async def run_bot():
-        if settings.DEBUG:
-            logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
         await BotRunner.dp.start_polling(BotRunner.bot, skip_updates=True)
 
     @staticmethod

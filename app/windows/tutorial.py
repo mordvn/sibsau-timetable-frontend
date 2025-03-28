@@ -9,6 +9,7 @@ from aiogram_dialog.api.entities import MediaAttachment
 import os
 from bs4 import BeautifulSoup
 from profiler import profile
+from aiogram.enums import ParseMode
 
 
 @profile(func_name="tutorial_load_tutorials_from_html")
@@ -107,4 +108,5 @@ tutorial_window = Window(
     ),
     state=BotStates.tutorial,
     getter=getter,
+    parse_mode=ParseMode.HTML,
 )

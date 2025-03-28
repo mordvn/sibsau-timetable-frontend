@@ -10,7 +10,6 @@ from profiler import profile
 @profile(func_name="wait_for_entity_choose_getter")
 async def getter(dialog_manager, **kwargs):
     entities = dialog_manager.start_data.get("entities", [])
-    logger.info(f"Entities in get_entity_list: {entities}")
     return {
         "entities": entities,
     }
