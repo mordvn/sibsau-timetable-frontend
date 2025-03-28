@@ -88,7 +88,7 @@ async def next_slide(callback, widget, dialog_manager: Any, **kwargs):
 
 tutorial_window = Window(
     DynamicMedia("video", when="video"),
-    Format("<b>{current}/{total} {title}</b>"),
+    Format("<b>{current}/{total} {title}</b>\n"),
     Format("{description}"),
     Row(
         Button(
