@@ -59,6 +59,9 @@ def _get_relative_day_info(offset=0):
 
     return day_name, suffix
 
+def _get_current_week_number():
+    today = datetime.now()
+    return WeekNumber.EVEN if today.isocalendar()[1] % 2 != 0 else WeekNumber.ODD
 
 @profile(func_name="timetable_get_day_offset_from_today")
 def _get_day_offset_from_today(day_name, selected_week_number):
@@ -76,9 +79,7 @@ def _get_day_offset_from_today(day_name, selected_week_number):
     ]
     day_index = day_names.index(day_name)
 
-    current_week = (
-        WeekNumber.EVEN if today.isocalendar()[1] % 2 == 0 else WeekNumber.ODD
-    )
+    current_week = _get_current_week_number()
 
     offset = day_index - today_weekday
 
@@ -112,20 +113,13 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
 
     user_id = dialog_manager.event.from_user.id
 
-    today = datetime.now()
-    current_week = (
-        WeekNumber.EVEN if today.isocalendar()[1] % 2 == 0 else WeekNumber.ODD
-    )
-
+    current_week = _get_current_week_number()
     if "is_first_open" not in dialog_manager.dialog_data:
         day_name, suffix = _get_relative_day_info(0)
         dialog_manager.dialog_data["filter_day_name"] = day_name
         dialog_manager.dialog_data["filter_day_suffix"] = "(" + suffix + ")"
 
-        today = datetime.now()
-        current_week = (
-            WeekNumber.EVEN if today.isocalendar()[1] % 2 == 0 else WeekNumber.ODD
-        )
+        current_week = _get_current_week_number()
         dialog_manager.dialog_data["filter_week_number"] = current_week
 
         dialog_manager.dialog_data["is_first_open"] = False
@@ -277,6 +271,8 @@ async def format_lessons(lessons, bot=None):
 
     result = ""
     for i, lesson in enumerate(lessons):
+        result += f"<b>{lesson.lesson_name}</b>\n"
+
         time_str = lesson.time_begin.strftime("%H:%M") if lesson.time_begin else "??:??"
 
         lesson_number = ""
@@ -311,12 +307,11 @@ async def format_lessons(lessons, bot=None):
         )
         end_time_str = end_time.strftime("%H:%M") if end_time else "??:??"
 
-        result += f"{lesson.lesson_name}\n"
-        result += f"{time_str}-{end_time_str}"
+        result += f"<b>{time_str}-{end_time_str}</b>"
         if lesson.lesson_type:
             result += f" | {lesson.lesson_type.value}"
         if lesson.subgroups and lesson.subgroups != Subgroup.COMMON:
-            result += f" | {lesson.subgroups.value} подгруппа"
+            result += f" | {lesson.subgroups.value}"
         result += "\n"
 
         location = []
@@ -509,7 +504,7 @@ async def subgroup_switch_click(callback, widget, manager: DialogManager, **kwar
 
 timetable_window = Window(
     Format(
-        "<b><a href='{main_entity_link}'>{timetable_data.entity.name}</a> | Х семестр {timetable_data.metadata.years}</b>"
+        "<b><a href='{main_entity_link}'>{timetable_data.entity.name}</a> | {timetable_data.metadata.semester.value} {timetable_data.metadata.years}</b>"
     ),
     Format(
         "<b>{dialog_data[filter_week_number].value} | {dialog_data[filter_day_name].value} {dialog_data[filter_day_suffix]}</b>"

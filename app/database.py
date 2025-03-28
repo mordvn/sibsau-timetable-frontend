@@ -24,7 +24,6 @@ from datetime import time, timedelta, datetime
 from profiler import profile
 from cacher import Cacher
 from config import settings
-import asyncio
 
 class LessonModel(BaseModel):
     schedule_type: str
@@ -131,122 +130,6 @@ class Database:
                 self.client = None
                 self.initialized = False
                 raise e
-
-    @profile(func_name="database_create_timetable")
-    async def create_timetable(self, timetable: TimetableData) -> bool:
-        await self.initialize()
-
-        if (
-            not timetable.entity
-            or not timetable.entity.type
-            or not timetable.entity.id
-            or timetable.entity.id <= 0
-        ):
-            logger.error(
-                f"Невозможно сохранить запись с невалидным Entity: {timetable.entity}"
-            )
-            return False
-
-        if not timetable.metadata or not timetable.metadata.week_number:
-            logger.error(
-                f"Невозможно сохранить запись с невалидной Metadata: {timetable.metadata}"
-            )
-            return False
-
-        try:
-            if await self.is_exist(timetable.entity.type, timetable.entity.id):
-                return await self.update_timetable(timetable)
-
-            model = self._to_model(timetable)
-
-            if (
-                not model.entity
-                or not model.entity.type
-                or not model.entity.id
-                or model.entity.id <= 0
-            ):
-                logger.error(
-                    f"Некорректная модель после преобразования: {model.entity}"
-                )
-                return False
-
-            await model.insert()
-            return True
-        except pymongo.errors.DuplicateKeyError as e:
-            logger.warning(f"Дубликат ключа при создании: {e}")
-
-            error_msg = str(e)
-            duplicate_info = (
-                error_msg.split("dup key: ")[-1] if "dup key: " in error_msg else ""
-            )
-            logger.debug(f"Конфликт по ключу: {duplicate_info}")
-
-            try:
-                return await self.update_timetable(timetable)
-            except Exception as update_error:
-                logger.error(
-                    f"Ошибка при попытке обновления после конфликта: {update_error}"
-                )
-                return False
-        except Exception as e:
-            logger.error(f"Ошибка создания расписания: {e}")
-            return False
-
-    @profile(func_name="database_is_exist")
-    async def is_exist(self, entity_type: EntityType, entity_id: int) -> bool:
-        await self.initialize()
-        count = await TimetableModel.find(
-            {"entity.type": entity_type.value, "entity.id": entity_id}
-        ).count()
-        return count > 0
-
-    @profile(func_name="database_update_timetable")
-    async def update_timetable(self, timetable: TimetableData) -> bool:
-        await self.initialize()
-
-        if (
-            not timetable.entity
-            or not timetable.entity.type
-            or not timetable.entity.id
-            or timetable.entity.id <= 0
-        ):
-            logger.error(
-                f"Невозможно обновить запись с невалидным Entity: {timetable.entity}"
-            )
-            return False
-
-        try:
-            existing = await TimetableModel.find_one(
-                {
-                    "entity.type": timetable.entity.type.value,
-                    "entity.id": timetable.entity.id,
-                }
-            )
-
-            if existing:
-                await existing.delete()
-
-            model = self._to_model(timetable)
-
-            if (
-                not model.entity
-                or not model.entity.type
-                or not model.entity.id
-                or model.entity.id <= 0
-            ):
-                logger.error(
-                    f"Некорректная модель после преобразования: {model.entity}"
-                )
-                return False
-
-            await model.insert()
-            return True
-        except pymongo.errors.DuplicateKeyError as e:
-            logger.error(f"Дубликат ключа при обновлении: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Ошибка обновления расписания: {e}")
-            return False
 
     @profile(func_name="database_get_timetables")
     @Cacher.cache(expire=21600)
@@ -455,21 +338,18 @@ class Database:
             self.initialized = False
             logger.debug("MongoDB соединение закрыто")
 
-    @profile(func_name="database_user_subscribe")
+    @profile(func_name="database.user_subscribe")
     async def user_subscribe(self, tg_id: int, entity_name: str) -> bool:
         await self.initialize()
 
         try:
-            # Проверяем, есть ли уже подписка
             existing = await SubscriptionModel.find_one(
                 {"tg_id": tg_id, "entity_name": entity_name}
             )
 
             if existing:
-                # Подписка уже существует
                 return True
 
-            # Создаем новую подписку
             subscription = SubscriptionModel(
                 tg_id=tg_id, entity_name=entity_name, created_at=datetime.now()
             )
@@ -482,12 +362,11 @@ class Database:
             logger.error(f"Ошибка при подписке пользователя: {e}")
             return False
 
-    @profile(func_name="database_user_unsubscribe")
+    @profile(func_name="database.user_unsubscribe")
     async def user_unsubscribe(self, tg_id: int, entity_name: str) -> bool:
         await self.initialize()
 
         try:
-            # Удаляем подписку
             result = await SubscriptionModel.find_one(
                 {"tg_id": tg_id, "entity_name": entity_name}
             )
@@ -503,7 +382,7 @@ class Database:
             logger.error(f"Ошибка при отписке пользователя: {e}")
             return False
 
-    @profile(func_name="database_user_is_subscribed")
+    @profile(func_name="database.user_is_subscribed")
     async def user_is_subscribed(self, tg_id: int, entity_name: str) -> bool:
         await self.initialize()
 
@@ -518,7 +397,7 @@ class Database:
             logger.error(f"Ошибка при проверке подписки пользователя: {e}")
             return False
 
-    @profile(func_name="database_get_subscribed_users")
+    @profile(func_name="database.get_subscribed_users")
     async def get_subscribed_users(self, entity_name: str) -> List[int]:
         await self.initialize()
 

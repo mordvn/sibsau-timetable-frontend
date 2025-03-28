@@ -8,10 +8,43 @@ from parser_types import (
     FieldChange,
     ChangeType,
     LessonChange,
+    Lesson,
+    ScheduleType,
+    ScheduleForm,
+    WeekNumber,
+    DayName,
+    LessonType,
+    Subgroup,
 )
 from profiler import profile
+from logger import trace
 from loguru import logger
 import asyncio
+from datetime import date, time, datetime, timedelta
+from enum import Enum
+
+
+class DataEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Enum):
+            return {"__enum__": obj.value}
+        if isinstance(obj, (date, datetime)):
+            return {"__datetime__": obj.isoformat()}
+        if isinstance(obj, time):
+            return {"__time__": obj.isoformat()}
+        if isinstance(obj, timedelta):
+            return {"__timedelta__": obj.total_seconds()}
+        if isinstance(obj, Lesson):
+            return {"__lesson__": obj.__dict__}
+        if isinstance(obj, Entity):
+            return {"__entity__": obj.__dict__}
+        if isinstance(obj, FieldChange):
+            return {"__fieldchange__": obj.__dict__}
+        if isinstance(obj, LessonChange):
+            return {"__lessonchange__": obj.__dict__}
+        if isinstance(obj, TimetableChangeData):
+            return {"__timetablechangedata__": obj.__dict__}
+        return super().default(obj)
 
 
 class Broker:
@@ -64,16 +97,20 @@ class Broker:
             await self.initialize()
 
             for change in changes:
-                change_dict = self._change_to_dict(change)
+                try:
+                    message = aio_pika.Message(
+                        body=json.dumps(change, cls=DataEncoder).encode(),
+                        delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    )
 
-                message = aio_pika.Message(
-                    body=json.dumps(change_dict).encode(),
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,  # Для сохранения сообщения при перезагрузке
-                )
-
-                await self.channel.default_exchange.publish(
-                    message, routing_key=self.queue_name
-                )
+                    await self.channel.default_exchange.publish(
+                        message, routing_key=self.queue_name
+                    )
+                except Exception as e:
+                    logger.error(f"Ошибка при сериализации/отправке изменения: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    raise
 
             return True
         except Exception as e:
@@ -91,7 +128,7 @@ class Broker:
                 async with message.process():
                     try:
                         body = message.body.decode()
-                        data = json.loads(body)
+                        data = Broker.process_message(body)
                         logger.debug(f"Получено сообщение из RabbitMQ: {data}")
 
                         result = (
@@ -130,6 +167,7 @@ class Broker:
             )
 
     @profile(func_name="broker_get_message")
+    @trace
     async def get_message(self) -> Optional[TimetableChangeData]:
         try:
             await self.initialize()
@@ -138,10 +176,10 @@ class Broker:
             if message:
                 try:
                     body = message.body.decode()
-                    data = json.loads(body)
+                    data = Broker.process_message(body)
                     await message.ack()
 
-                    return self.dict_to_change(data)
+                    return data
                 except Exception as e:
                     logger.error(f"Ошибка при обработке полученного сообщения: {e}")
                     await message.reject(requeue=True)
@@ -167,90 +205,71 @@ class Broker:
 
         logger.debug("RabbitMQ соединение закрыто")
 
-    @profile(func_name="broker_change_to_dict")
-    def _change_to_dict(self, change: TimetableChangeData) -> Dict[str, Any]:
-        entity_dict = {
-            "type": change.entity.type.value,
-            "id": change.entity.id,
-            "name": change.entity.name,
-        }
-
-        metadata_changes = []
-        if change.metadata_changes:
-            for field_change in change.metadata_changes:
-                metadata_changes.append(
-                    {
-                        "field_name": field_change.field_name,
-                        "old_value": str(field_change.old_value),
-                        "new_value": str(field_change.new_value),
-                    }
-                )
-
-        lesson_changes = []
-        if change.lesson_changes:
-            for lesson_change in change.lesson_changes:
-                field_changes = []
-                for field_change in lesson_change.field_changes:
-                    field_changes.append(
-                        {
-                            "field_name": field_change.field_name,
-                            "old_value": str(field_change.old_value),
-                            "new_value": str(field_change.new_value),
-                        }
-                    )
-
-                lesson_changes.append(
-                    {
-                        "change_type": lesson_change.change_type.value,
-                        "field_changes": field_changes,
-                    }
-                )
-
-        return {
-            "entity": entity_dict,
-            "metadata_changes": metadata_changes,
-            "lesson_changes": lesson_changes,
-            "timestamp": str(asyncio.get_event_loop().time()),
-        }
+    @staticmethod
+    @profile(func_name="broker_process_message")
+    def process_message(message_body):
+        try:
+            if isinstance(message_body, bytes):
+                message_body = message_body.decode('utf-8')
+                
+            return json.loads(message_body, object_hook=Broker.object_hook)
+        except Exception as e:
+            logger.error(f"Ошибка обработки сообщения: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
 
     @staticmethod
-    @profile(func_name="broker_dict_to_change")
-    def dict_to_change(data: Dict[str, Any]) -> TimetableChangeData:
-        entity_data = data.get("entity", {})
-        entity = Entity(
-            type=EntityType(entity_data.get("type")),
-            id=entity_data.get("id"),
-            name=entity_data.get("name"),
-        )
-
-        metadata_changes = []
-        for change_data in data.get("metadata_changes", []) or []:
-            field_change = FieldChange(
-                field_name=change_data.get("field_name"),
-                old_value=change_data.get("old_value"),
-                new_value=change_data.get("new_value"),
-            )
-            metadata_changes.append(field_change)
-
-        lesson_changes = []
-        for lesson_change_data in data.get("lesson_changes", []) or []:
-            field_changes = []
-            for field_change_data in lesson_change_data.get("field_changes", []) or []:
-                field_change = FieldChange(
-                    field_name=field_change_data.get("field_name"),
-                    old_value=field_change_data.get("old_value"),
-                    new_value=field_change_data.get("new_value"),
-                )
-                field_changes.append(field_change)
-
-            lesson_change = LessonChange(
-                change_type=ChangeType(lesson_change_data.get("change_type")),
-                field_changes=field_changes,
-            )
-            lesson_changes.append(lesson_change)
-
-        return TimetableChangeData(
-            entity=entity,
-            metadata_changes=metadata_changes if metadata_changes else None,
-            lesson_changes=lesson_changes if lesson_changes else None,
-        )
+    def object_hook(obj):
+        if "__enum__" in obj:
+            for enum_type in [ScheduleType, ScheduleForm, WeekNumber, DayName, LessonType, Subgroup, EntityType, ChangeType]:
+                try:
+                    return enum_type(obj["__enum__"])
+                except (ValueError, TypeError):
+                    continue
+            return obj["__enum__"]
+        elif "__datetime__" in obj:
+            return datetime.fromisoformat(obj["__datetime__"])
+        elif "__time__" in obj:
+            return time.fromisoformat(obj["__time__"])
+        elif "__timedelta__" in obj:
+            return timedelta(seconds=obj["__timedelta__"])
+        elif "__lesson__" in obj:
+            lesson_dict = obj["__lesson__"]
+            # Обработка вложенных типов в Lesson
+            for key, value in lesson_dict.items():
+                if isinstance(value, dict):
+                    lesson_dict[key] = Broker.object_hook(value)
+                elif isinstance(value, list) and value and isinstance(value[0], dict):
+                    lesson_dict[key] = [Broker.object_hook(item) for item in value]
+            return Lesson(**lesson_dict)
+        elif "__entity__" in obj:
+            entity_dict = obj["__entity__"]
+            for key, value in entity_dict.items():
+                if isinstance(value, dict):
+                    entity_dict[key] = Broker.object_hook(value)
+            return Entity(**entity_dict)
+        elif "__fieldchange__" in obj:
+            fc_dict = obj["__fieldchange__"]
+            for key, value in fc_dict.items():
+                if isinstance(value, dict):
+                    fc_dict[key] = Broker.object_hook(value)
+            return FieldChange(**fc_dict)
+        elif "__lessonchange__" in obj:
+            lc_dict = obj["__lessonchange__"]
+            for key, value in lc_dict.items():
+                if isinstance(value, dict):
+                    lc_dict[key] = Broker.object_hook(value)
+                elif isinstance(value, list) and value and isinstance(value[0], dict):
+                    lc_dict[key] = [Broker.object_hook(item) for item in value]
+            return LessonChange(**lc_dict)
+        elif "__timetablechangedata__" in obj:
+            tcd_dict = obj["__timetablechangedata__"]
+            for key, value in tcd_dict.items():
+                if isinstance(value, dict):
+                    tcd_dict[key] = Broker.object_hook(value)
+                elif isinstance(value, list) and value and isinstance(value[0], dict):
+                    tcd_dict[key] = [Broker.object_hook(item) for item in value]
+            return TimetableChangeData(**tcd_dict)
+        
+        return obj

@@ -10,6 +10,7 @@ from loguru import logger
 
 from tabulate import tabulate
 
+
 THRESHOLD_SECONDS = 0.2
 
 RED = "\033[91m"
