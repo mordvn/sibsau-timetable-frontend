@@ -59,9 +59,11 @@ def _get_relative_day_info(offset=0):
 
     return day_name, suffix
 
+
 def _get_current_week_number():
     today = datetime.now()
     return WeekNumber.EVEN if today.isocalendar()[1] % 2 != 0 else WeekNumber.ODD
+
 
 @profile(func_name="timetable_get_day_offset_from_today")
 def _get_day_offset_from_today(day_name, selected_week_number):
@@ -147,7 +149,7 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
                 ] = await database.user_is_subscribed(
                     user_id, timetable_data.entity.name
                 )
-                
+
                 # Загружаем сохраненную подгруппу
                 saved_subgroup = await database.get_user_subgroup(
                     user_id, timetable_data.entity.name
@@ -507,11 +509,11 @@ async def subgroup_switch_click(callback, widget, manager: DialogManager, **kwar
     next_index = (current_index + 1) % len(subgroups)
     new_subgroup = subgroups[next_index]
     manager.dialog_data["filter_subgroup"] = new_subgroup
-    
+
     # Сохраняем настройку пользователя в базе данных
     user_id = callback.from_user.id
     entity_name = manager.dialog_data.get("timetable_data").entity.name
-    
+
     await database.save_user_subgroup(user_id, entity_name, new_subgroup)
 
 
@@ -522,8 +524,7 @@ timetable_window = Window(
     Format(
         "<b>{dialog_data[filter_week_number].value} | {dialog_data[filter_day_name].value} {dialog_data[filter_day_suffix]}</b>"
     ),
-    Const("\n"),
-    Format("{filtered_lessons}"),
+    Format("\n{filtered_lessons}"),
     Row(
         Button(
             Format("{tab_regular_text}"),

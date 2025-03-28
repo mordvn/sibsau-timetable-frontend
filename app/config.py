@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     MONGODB_URI: str
     RABBITMQ_URI: str
     REDIS_URI: str
-    
+
     BOT_TOKEN: str
 
     class Config:

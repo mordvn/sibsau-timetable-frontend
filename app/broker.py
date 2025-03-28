@@ -109,6 +109,7 @@ class Broker:
                 except Exception as e:
                     logger.error(f"Ошибка при сериализации/отправке изменения: {e}")
                     import traceback
+
                     logger.error(traceback.format_exc())
                     raise
 
@@ -210,19 +211,29 @@ class Broker:
     def process_message(message_body):
         try:
             if isinstance(message_body, bytes):
-                message_body = message_body.decode('utf-8')
-                
+                message_body = message_body.decode("utf-8")
+
             return json.loads(message_body, object_hook=Broker.object_hook)
         except Exception as e:
             logger.error(f"Ошибка обработки сообщения: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             return None
 
     @staticmethod
     def object_hook(obj):
         if "__enum__" in obj:
-            for enum_type in [ScheduleType, ScheduleForm, WeekNumber, DayName, LessonType, Subgroup, EntityType, ChangeType]:
+            for enum_type in [
+                ScheduleType,
+                ScheduleForm,
+                WeekNumber,
+                DayName,
+                LessonType,
+                Subgroup,
+                EntityType,
+                ChangeType,
+            ]:
                 try:
                     return enum_type(obj["__enum__"])
                 except (ValueError, TypeError):
@@ -271,5 +282,5 @@ class Broker:
                 elif isinstance(value, list) and value and isinstance(value[0], dict):
                     tcd_dict[key] = [Broker.object_hook(item) for item in value]
             return TimetableChangeData(**tcd_dict)
-        
+
         return obj

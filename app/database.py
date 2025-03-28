@@ -25,6 +25,7 @@ from profiler import profile
 from cacher import Cacher
 from config import settings
 
+
 class LessonModel(BaseModel):
     schedule_type: str
     time_begin: str
@@ -134,7 +135,11 @@ class Database:
 
                 await init_beanie(
                     database=db,
-                    document_models=[TimetableModel, SubscriptionModel, UserSettingsModel],
+                    document_models=[
+                        TimetableModel,
+                        SubscriptionModel,
+                        UserSettingsModel,
+                    ],
                     allow_index_dropping=True,
                 )
 
@@ -432,27 +437,29 @@ class Database:
             return []
 
     @profile(func_name="database.save_user_subgroup")
-    async def save_user_subgroup(self, tg_id: int, entity_name: str, subgroup: Subgroup) -> bool:
+    async def save_user_subgroup(
+        self, tg_id: int, entity_name: str, subgroup: Subgroup
+    ) -> bool:
         await self.initialize()
-        
+
         try:
             existing = await UserSettingsModel.find_one(
                 {"tg_id": tg_id, "entity_name": entity_name}
             )
-            
+
             if existing:
                 existing.subgroup = subgroup.value
                 existing.updated_at = datetime.now()
                 await existing.save()
             else:
                 settings = UserSettingsModel(
-                    tg_id=tg_id, 
-                    entity_name=entity_name, 
+                    tg_id=tg_id,
+                    entity_name=entity_name,
                     subgroup=subgroup.value,
-                    updated_at=datetime.now()
+                    updated_at=datetime.now(),
                 )
                 await settings.insert()
-                
+
             return True
         except Exception as e:
             logger.error(f"Ошибка при сохранении настроек пользователя: {e}")
@@ -461,15 +468,15 @@ class Database:
     @profile(func_name="database.get_user_subgroup")
     async def get_user_subgroup(self, tg_id: int, entity_name: str) -> Subgroup:
         await self.initialize()
-        
+
         try:
             settings = await UserSettingsModel.find_one(
                 {"tg_id": tg_id, "entity_name": entity_name}
             )
-            
+
             if settings and settings.subgroup:
                 return Subgroup(settings.subgroup)
-            
+
             return Subgroup.COMMON
         except Exception as e:
             logger.error(f"Ошибка при получении настроек пользователя: {e}")
