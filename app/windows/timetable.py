@@ -258,6 +258,7 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
         "tab_consultations_text": tab_consultations_text,
         "tab_session_text": tab_session_text,
         "main_entity_link": await _get_quick_link(bot, timetable_data.entity.name),
+        "optional_semester": timetable_data.metadata.semester.value if timetable_data.metadata.semester else "",
     }
 
 
@@ -519,7 +520,7 @@ async def subgroup_switch_click(callback, widget, manager: DialogManager, **kwar
 
 timetable_window = Window(
     Format(
-        "<b><a href='{main_entity_link}'>{timetable_data.entity.name}</a> | {timetable_data.metadata.semester.value} {timetable_data.metadata.years}</b>"
+        "<b><a href='{main_entity_link}'>{timetable_data.entity.name}</a> | {optional_semester} {timetable_data.metadata.years}</b>"
     ),
     Format(
         "<b>{dialog_data[filter_week_number].value} | {dialog_data[filter_day_name].value} {dialog_data[filter_day_suffix]}</b>"
