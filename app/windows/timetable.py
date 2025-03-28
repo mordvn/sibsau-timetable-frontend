@@ -135,7 +135,6 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
         else:
             dialog_manager.dialog_data["filter_week_number"] = current_week
 
-        # Проверяем текущий статус подписки при первом открытии
         if (
             user_id
             and timetable_data
@@ -148,8 +147,15 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
                 ] = await database.user_is_subscribed(
                     user_id, timetable_data.entity.name
                 )
+                
+                # Загружаем сохраненную подгруппу
+                saved_subgroup = await database.get_user_subgroup(
+                    user_id, timetable_data.entity.name
+                )
+                dialog_manager.dialog_data["filter_subgroup"] = saved_subgroup
             except Exception:
                 dialog_manager.dialog_data["is_subscribed"] = False
+                dialog_manager.dialog_data["filter_subgroup"] = Subgroup.COMMON
 
     dialog_manager.dialog_data["filter_week_number"] = dialog_manager.dialog_data.get(
         "filter_week_number", current_week
@@ -499,7 +505,14 @@ async def subgroup_switch_click(callback, widget, manager: DialogManager, **kwar
     subgroups = [Subgroup.COMMON, Subgroup.FIRST, Subgroup.SECOND]
     current_index = subgroups.index(current_subgroup)
     next_index = (current_index + 1) % len(subgroups)
-    manager.dialog_data["filter_subgroup"] = subgroups[next_index]
+    new_subgroup = subgroups[next_index]
+    manager.dialog_data["filter_subgroup"] = new_subgroup
+    
+    # Сохраняем настройку пользователя в базе данных
+    user_id = callback.from_user.id
+    entity_name = manager.dialog_data.get("timetable_data").entity.name
+    
+    await database.save_user_subgroup(user_id, entity_name, new_subgroup)
 
 
 timetable_window = Window(

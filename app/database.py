@@ -91,6 +91,25 @@ class SubscriptionModel(Document):
         ]
 
 
+class UserSettingsModel(Document):
+    tg_id: int
+    entity_name: str
+    subgroup: str = Subgroup.COMMON.value
+    updated_at: datetime = datetime.now()
+
+    class Settings:
+        name = "user_settings"
+        use_revision = False
+        indexes = [
+            "tg_id",
+            "entity_name",
+            [
+                ("tg_id", pymongo.ASCENDING),
+                ("entity_name", pymongo.ASCENDING),
+            ],
+        ]
+
+
 class Database:
     def __init__(self, connection_string, db_name="sibsau-timetable"):
         self.connection_string = connection_string
@@ -115,7 +134,7 @@ class Database:
 
                 await init_beanie(
                     database=db,
-                    document_models=[TimetableModel, SubscriptionModel],
+                    document_models=[TimetableModel, SubscriptionModel, UserSettingsModel],
                     allow_index_dropping=True,
                 )
 
@@ -411,6 +430,50 @@ class Database:
         except Exception as e:
             logger.error(f"Ошибка при получении подписанных пользователей: {e}")
             return []
+
+    @profile(func_name="database.save_user_subgroup")
+    async def save_user_subgroup(self, tg_id: int, entity_name: str, subgroup: Subgroup) -> bool:
+        await self.initialize()
+        
+        try:
+            existing = await UserSettingsModel.find_one(
+                {"tg_id": tg_id, "entity_name": entity_name}
+            )
+            
+            if existing:
+                existing.subgroup = subgroup.value
+                existing.updated_at = datetime.now()
+                await existing.save()
+            else:
+                settings = UserSettingsModel(
+                    tg_id=tg_id, 
+                    entity_name=entity_name, 
+                    subgroup=subgroup.value,
+                    updated_at=datetime.now()
+                )
+                await settings.insert()
+                
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка при сохранении настроек пользователя: {e}")
+            return False
+
+    @profile(func_name="database.get_user_subgroup")
+    async def get_user_subgroup(self, tg_id: int, entity_name: str) -> Subgroup:
+        await self.initialize()
+        
+        try:
+            settings = await UserSettingsModel.find_one(
+                {"tg_id": tg_id, "entity_name": entity_name}
+            )
+            
+            if settings and settings.subgroup:
+                return Subgroup(settings.subgroup)
+            
+            return Subgroup.COMMON
+        except Exception as e:
+            logger.error(f"Ошибка при получении настроек пользователя: {e}")
+            return Subgroup.COMMON
 
 
 database = Database(settings.MONGODB_URI)
