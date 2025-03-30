@@ -457,10 +457,7 @@ async def day_today_click(callback, widget, manager: DialogManager, **kwargs):
     manager.dialog_data["filter_day_name"] = day_name
     manager.dialog_data["filter_day_suffix"] = "(" + suffix + ")"
 
-    today = datetime.now()
-    current_week = (
-        WeekNumber.EVEN if today.isocalendar()[1] % 2 == 0 else WeekNumber.ODD
-    )
+    current_week = _get_current_week_number()
     manager.dialog_data["filter_week_number"] = current_week
 
 
