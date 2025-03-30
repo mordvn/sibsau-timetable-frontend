@@ -68,9 +68,6 @@ class TimetableModel(Document):
             "entity.type",
             "entity.id",
             "entity.name",
-            "metadata.week_number",
-            "metadata.date",
-            "metadata.semester",
         ]
 
 
