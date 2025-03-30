@@ -10,6 +10,7 @@ from aiogram_dialog import (
     DialogManager,
     setup_dialogs,
     StartMode,
+    ShowMode,
 )
 from parser_types import (
     TimetableChangeData,
@@ -20,7 +21,6 @@ from windows.states import BotStates
 from loguru import logger
 import logging
 import sys
-from config import settings
 from windows import tutorial_window, wait_for_entity_choose_window, timetable_window
 from database_searcher import SearchEntityBuilder
 from database import database
@@ -369,7 +369,7 @@ class BotRunner:
     @staticmethod
     @profile(func_name="bot_runner_process_help")
     async def _process_help(message: Message, dialog_manager: DialogManager):
-        await dialog_manager.start(BotStates.tutorial, mode=StartMode.NEW_STACK)
+        await dialog_manager.start(BotStates.tutorial, mode=StartMode.RESET_STACK)
 
     @staticmethod
     @profile(func_name="bot_runner_receive_timetable_search_request")
@@ -385,19 +385,19 @@ class BotRunner:
                     await dialog_manager.start(
                         BotStates.timetable,
                         data={"entity": search_results[0]},
-                        mode=StartMode.NEW_STACK,
+                        mode=StartMode.RESET_STACK,
                     )
                 else:
                     await dialog_manager.start(
                         BotStates.wait_for_entity_choose,
                         data={"entities": search_results},
-                        mode=StartMode.NEW_STACK,
+                        mode=StartMode.RESET_STACK,
                     )
             else:
                 await dialog_manager.start(
                     BotStates.timetable,
                     data={"entity": search_results},
-                    mode=StartMode.NEW_STACK,
+                    mode=StartMode.RESET_STACK,
                 )
         else:
             async with ChatActionSender.typing(
@@ -412,13 +412,13 @@ class BotRunner:
                         await dialog_manager.start(
                             BotStates.wait_for_entity_choose,
                             data={"entities": search_results},
-                            mode=StartMode.NEW_STACK,
+                            mode=StartMode.RESET_STACK,
                         )
                     else:
                         await dialog_manager.start(
                             BotStates.timetable,
                             data={"entity": search_results},
-                            mode=StartMode.NEW_STACK,
+                            mode=StartMode.RESET_STACK,
                         )
                 else:
                     await message.answer(

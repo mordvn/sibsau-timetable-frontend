@@ -3,6 +3,8 @@ from aiogram_dialog.widgets.kbd import Button, ListGroup
 from aiogram_dialog import Window
 from windows.states import BotStates
 from aiogram_dialog import StartMode
+from aiogram_dialog.widgets.link_preview import LinkPreview
+
 from loguru import logger
 from profiler import profile
 
@@ -38,6 +40,7 @@ wait_for_entity_choose_window = Window(
         item_id_getter=lambda item: item.name,
         items="entities",
     ),
+    LinkPreview(is_disabled=True),
     state=BotStates.wait_for_entity_choose,
     getter=getter,
 )

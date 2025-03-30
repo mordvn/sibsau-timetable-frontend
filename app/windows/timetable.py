@@ -12,6 +12,7 @@ from parser_types import Entity
 from aiogram.utils.deep_linking import create_start_link
 from aiogram import Bot
 from profiler import profile
+from aiogram_dialog.widgets.link_preview import LinkPreview
 
 
 @profile(func_name="timetable_get_timetable_data")
@@ -258,7 +259,9 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
         "tab_consultations_text": tab_consultations_text,
         "tab_session_text": tab_session_text,
         "main_entity_link": await _get_quick_link(bot, timetable_data.entity.name),
-        "optional_semester": timetable_data.metadata.semester.value if timetable_data.metadata.semester else "",
+        "optional_semester": timetable_data.metadata.semester.value
+        if timetable_data.metadata.semester
+        else "",
     }
 
 
@@ -330,7 +333,9 @@ async def format_lessons(lessons, bot=None):
                 location.append(_html_wrap_link(lesson.auditorium, link))
 
         if location:
-            twogis_link_sign = f'<a href="https://2gis.ru/krasnoyarsk/search/{lesson.location}">📍</a>'
+            twogis_link_sign = (
+                f'<a href="https://2gis.ru/krasnoyarsk/search/{lesson.location}">📍</a>'
+            )
             result += f"{' '.join(location)} {twogis_link_sign} \n"
 
         if lesson.professors and len(lesson.professors) > 0:
@@ -572,6 +577,7 @@ timetable_window = Window(
             on_click=subgroup_switch_click,
         ),
     ),
+    LinkPreview(is_disabled=True),
     state=BotStates.timetable,
     getter=timetable_getter,
     parse_mode=ParseMode.HTML,

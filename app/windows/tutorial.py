@@ -10,6 +10,7 @@ import os
 from bs4 import BeautifulSoup
 from profiler import profile
 from aiogram.enums import ParseMode
+from aiogram_dialog.widgets.link_preview import LinkPreview
 
 
 @profile(func_name="tutorial_load_tutorials_from_html")
@@ -106,6 +107,7 @@ tutorial_window = Window(
             < manager.dialog_data.get("total_slides", 0) - 1,
         ),
     ),
+    LinkPreview(is_disabled=True),
     state=BotStates.tutorial,
     getter=getter,
     parse_mode=ParseMode.HTML,
