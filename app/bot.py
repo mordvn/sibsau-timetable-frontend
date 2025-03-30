@@ -41,7 +41,7 @@ class BotRunner:
     @staticmethod
     @profile(func_name="bot_runner_init")
     async def init(token: str):
-        BotRunner.bot = Bot(token=token)
+        BotRunner.bot = Bot(token="7927725405:AAHoQrzzNkAI0-7078BOiSvTDuSJSeXFLUw")
         BotRunner.dp = Dispatcher(storage=storage)
 
         BotRunner.dp["bot_instance"] = BotRunner.bot

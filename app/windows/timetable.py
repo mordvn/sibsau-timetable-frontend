@@ -328,11 +328,10 @@ async def format_lessons(lessons, bot=None):
             if bot:
                 link = await _get_quick_link(bot, lesson.auditorium)
                 location.append(_html_wrap_link(lesson.auditorium, link))
-            else:
-                location.append(lesson.auditorium)
 
         if location:
-            result += f"{' '.join(location)} 📍 \n"
+            twogis_link_sign = f'<a href="https://2gis.ru/krasnoyarsk/search/{lesson.location}">📍</a>'
+            result += f"{' '.join(location)} {twogis_link_sign} \n"
 
         if lesson.professors and len(lesson.professors) > 0:
             professors_links = []
@@ -340,8 +339,6 @@ async def format_lessons(lessons, bot=None):
                 if bot:
                     link = await _get_quick_link(bot, professor)
                     professors_links.append(_html_wrap_link(professor, link))
-                else:
-                    professors_links.append(professor)
             result += f"{', '.join(professors_links)}\n"
 
         if lesson.groups and len(lesson.groups) > 0:
@@ -350,8 +347,6 @@ async def format_lessons(lessons, bot=None):
                 if bot:
                     link = await _get_quick_link(bot, group)
                     groups_links.append(_html_wrap_link(group, link))
-                else:
-                    groups_links.append(group)
             result += f"{', '.join(groups_links)}\n"
 
         result += "\n"
