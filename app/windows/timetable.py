@@ -128,17 +128,6 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
         dialog_manager.dialog_data["is_first_open"] = False
 
         if (
-            timetable_data
-            and timetable_data.metadata
-            and timetable_data.metadata.week_number
-        ):
-            dialog_manager.dialog_data["filter_week_number"] = (
-                timetable_data.metadata.week_number
-            )
-        else:
-            dialog_manager.dialog_data["filter_week_number"] = current_week
-
-        if (
             user_id
             and timetable_data
             and timetable_data.entity
