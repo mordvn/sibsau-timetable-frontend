@@ -4,7 +4,7 @@ from aiogram_dialog import Window, DialogManager
 from windows.states import BotStates
 from parser_types import WeekNumber, DayName, ScheduleType, Subgroup
 from datetime import datetime, timedelta
-from parser_types import TimetableData
+from parser_types import TimetableData, EntityType
 from database import database
 from database_searcher import SearchTimetableDataBuilder, FilteredLessonsBuilder
 from aiogram.enums import ParseMode
@@ -13,6 +13,7 @@ from aiogram.utils.deep_linking import create_start_link
 from aiogram import Bot
 from profiler import profile
 from aiogram_dialog.widgets.link_preview import LinkPreview
+from loguru import logger
 
 
 @profile(func_name="timetable_get_timetable_data")
@@ -206,7 +207,7 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
 
     filtered_lessons = builder.build()
 
-    formatted_lessons = await format_lessons(filtered_lessons, bot)
+    formatted_lessons = await format_lessons(timetable_data.entity, filtered_lessons, bot)
 
     week_text = f"{1 if dialog_manager.dialog_data['filter_week_number'] == WeekNumber.ODD else 2}/2"
     day_text = f"{day_index}/7"
@@ -255,7 +256,7 @@ async def timetable_getter(dialog_manager: DialogManager, **kwargs):
 
 
 @profile(func_name="timetable_format_lessons")
-async def format_lessons(lessons, bot=None):
+async def format_lessons(entity, lessons, bot=None):
     if not lessons:
         return "Занятия не найдены для выбранных фильтров"
 
@@ -316,7 +317,7 @@ async def format_lessons(lessons, bot=None):
         result += "\n"
 
         location = []
-        if lesson.auditorium:
+        if lesson.auditorium and entity.type != EntityType.AUDITORIUM:
             if bot:
                 link = await _get_quick_link(bot, lesson.auditorium)
                 location.append(_html_wrap_link(lesson.auditorium, link))
